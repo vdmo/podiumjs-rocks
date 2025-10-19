@@ -153,7 +153,7 @@ fn fs_main(@location(0) uv: vec2f) -> @location(0) vec4f {
 
 ```bash
 # Clone the repository
-git clone https://github.com/podiumjs/podiumjs.git
+git clone https://github.com/vdmo/podiumjs-rocks.git
 cd podiumjs
 
 # Install dependencies
@@ -212,7 +212,7 @@ examples/          # Example projects
 
 - [ ] **Post-processing pipeline** - Built-in effects and filters
 - [ ] **Video texture support** - Enhanced video handling
-- [ ] **Compute shader support** - GPU computing capabilities  
+- [ ] **Compute shader support** - GPU computing capabilities
 - [ ] **Animation system** - Timeline-based animations
 - [ ] **Physics integration** - Basic physics simulation
 - [ ] **Particle system** - GPU-accelerated particles
@@ -249,10 +249,9 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 ---
 
 <div align="center">
-  <p>Built with ❤️ for the modern web</p>
+  <p>Built by vdmo with ❤️ for the modern web</p>
   <p>
-    <a href="https://github.com/podiumjs/podiumjs">GitHub</a> •
-    <a href="https://podiumjs.dev">Documentation</a> •
-    <a href="https://discord.gg/podiumjs">Discord</a>
+    <a href="https://github.com/vdmo/podiumjs-rocks.git">GitHub</a> •
+
   </p>
 </div>
