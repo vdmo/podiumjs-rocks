@@ -1,0 +1,196 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PodiumJS - Post-Processing Debug</title>
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            background: #000;
+            font-family: Arial, sans-serif;
+        }
+        #canvas {
+            display: block;
+            width: 100vw;
+            height: 100vh;
+        }
+        #info {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            color: white;
+            font-size: 14px;
+            z-index: 100;
+            background: rgba(0, 0, 0, 0.8);
+            padding: 15px;
+            border-radius: 8px;
+            max-width: 400px;
+        }
+    </style>
+</head>
+<body>
+    <canvas id="canvas"></canvas>
+    
+    <div id="info">
+        <h3>🔧 Post-Processing Debug</h3>
+        <div id="status">Loading...</div>
+        <div style="margin-top: 10px;">
+            <button id="togglePostProcessing">Toggle Post-Processing</button>
+            <button id="testBlur">Test Blur</button>
+        </div>
+    </div>
+
+    <script type="module">
+        import { Podium } from '../src/index.ts';
+
+        let podium;
+        let postProcessingEnabled = true;
+
+        async function init() {
+            const canvas = document.getElementById('canvas');
+            const status = document.getElementById('status');
+            
+            try {
+                console.log('🚀 Starting debug initialization...');
+                
+                if (!Podium.isSupported()) {
+                    status.innerHTML = '<span style="color: #ff6b6b;">❌ WebGPU not supported</span>';
+                    return;
+                }
+
+                status.innerHTML = '✅ WebGPU supported, initializing PodiumJS...';
+
+                // Initialize WITHOUT post-processing first
+                podium = new Podium({
+                    canvas: canvas,
+                    backgroundColor: [0.1, 0.2, 0.3, 1.0],
+                    autoResize: true,
+                    enablePostProcessing: false  // Start without post-processing
+                });
+
+                console.log('📦 PodiumJS instance created');
+                const success = await podium.initialize();
+                if (!success) {
+                    throw new Error('Failed to initialize PodiumJS');
+                }
+                
+                console.log('✅ PodiumJS initialized successfully');
+                status.innerHTML = '✅ PodiumJS initialized, creating test plane...';
+
+                // Create a simple test texture
+                const createTestTexture = () => {
+                    const canvas = document.createElement('canvas');
+                    canvas.width = 256;
+                    canvas.height = 256;
+                    const ctx = canvas.getContext('2d');
+                    
+                    // Create a vibrant gradient
+                    const gradient = ctx.createRadialGradient(128, 128, 0, 128, 128, 128);
+                    gradient.addColorStop(0, '#ff6b6b');  // Red center
+                    gradient.addColorStop(0.5, '#4ecdc4'); // Teal middle
+                    gradient.addColorStop(1, '#45b7d1');   // Blue outer
+                    
+                    ctx.fillStyle = gradient;
+                    ctx.fillRect(0, 0, 256, 256);
+                    
+                    // Add some pattern
+                    ctx.fillStyle = 'rgba(255, 255, 255, 0.3)';
+                    for (let i = 0; i < 8; i++) {
+                        for (let j = 0; j < 8; j++) {
+                            if ((i + j) % 2 === 0) {
+                                ctx.fillRect(i * 32, j * 32, 16, 16);
+                            }
+                        }
+                    }
+                    
+                    return canvas.toDataURL();
+                };
+
+                console.log('🎨 Creating test plane...');
+                const plane = await podium.createUniformPlane(
+                    'testplane',
+                    createTestTexture(),
+                    { width: 1.5, height: 1.0 }
+                );
+
+                if (plane) {
+                    console.log('✅ Test plane created successfully');
+                    podium.setTransform('testplane', {
+                        position: [0, 0, 0],
+                        scale: [1, 1, 1]
+                    });
+                    
+                    status.innerHTML = `
+                        ✅ Rendering active (no post-processing)<br>
+                        Post-processing: ${postProcessingEnabled ? 'ON' : 'OFF'}<br>
+                        <small>You should see a colorful square</small>
+                    `;
+                } else {
+                    throw new Error('Failed to create test plane');
+                }
+
+                // Start render loop
+                console.log('🎬 Starting render loop...');
+                podium.startRenderLoop();
+                
+                // Make globally accessible
+                window.podium = podium;
+
+                // Setup controls
+                setupControls(status);
+
+                console.log('🎉 Debug setup complete!');
+
+            } catch (error) {
+                console.error('💥 Initialization error:', error);
+                status.innerHTML = `<span style="color: #ff6b6b;">❌ Error: ${error.message}</span>`;
+            }
+        }
+
+        function setupControls(status) {
+            // Toggle post-processing
+            document.getElementById('togglePostProcessing').addEventListener('click', async () => {
+                try {
+                    console.log('🔄 Toggling post-processing...');
+                    postProcessingEnabled = !postProcessingEnabled;
+                    
+                    // This is a simplified test - we'd need to recreate the Podium instance
+                    // to change post-processing settings in the current implementation
+                    status.innerHTML = `
+                        ⚠️ Post-processing toggle requires restart<br>
+                        Current: ${postProcessingEnabled ? 'ON' : 'OFF'}<br>
+                        <small>Would need to recreate renderer</small>
+                    `;
+                    
+                } catch (error) {
+                    console.error('❌ Toggle error:', error);
+                }
+            });
+
+            // Test blur (only works if post-processing is enabled)
+            document.getElementById('testBlur').addEventListener('click', () => {
+                if (podium.postProcessor) {
+                    console.log('🌀 Testing blur effect...');
+                    podium.setEffectEnabled('blur', true);
+                    podium.updateEffect('blur', { intensity: 2.0, radius: 3.0 });
+                    status.innerHTML = `
+                        ✅ Blur effect applied<br>
+                        Post-processing: ON<br>
+                        <small>Square should be blurred</small>
+                    `;
+                } else {
+                    status.innerHTML = `
+                        ⚠️ Post-processing not enabled<br>
+                        Cannot apply blur effect<br>
+                        <small>Restart with post-processing ON</small>
+                    `;
+                }
+            });
+        }
+
+        init();
+    </script>
+</body>
+</html>

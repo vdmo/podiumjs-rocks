@@ -1,0 +1,233 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PodiumJS - Debug Example</title>
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            background: #000;
+            font-family: Arial, sans-serif;
+            overflow: hidden;
+        }
+
+        #canvas {
+            display: block;
+            width: 100vw;
+            height: 100vh;
+            border: 2px solid #ff6b6b;
+        }
+
+        #info {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            color: white;
+            font-size: 14px;
+            z-index: 100;
+            background: rgba(0, 0, 0, 0.8);
+            padding: 15px;
+            border-radius: 8px;
+            max-width: 400px;
+            font-family: monospace;
+            line-height: 1.4;
+        }
+
+        .error {
+            color: #ff6b6b;
+        }
+
+        .success {
+            color: #4ecdc4;
+        }
+
+        .warning {
+            color: #ffeb3b;
+        }
+    </style>
+</head>
+<body>
+    <canvas id="canvas" width="800" height="600"></canvas>
+    
+    <div id="info">
+        <h3>🔧 Debug Console</h3>
+        <div id="log">Initializing...</div>
+    </div>
+
+    <script type="module">
+        import { WebGPUContext } from '../src/core/WebGPUContext.ts';
+        import { ShaderManager } from '../src/shaders/ShaderManager.ts';
+        import { Plane } from '../src/geometry/Plane.ts';
+
+        let log = [];
+        const logElement = document.getElementById('log');
+
+        function addLog(message, type = 'info') {
+            log.push(`[${new Date().toLocaleTimeString()}] ${message}`);
+            const className = type === 'error' ? 'error' : type === 'success' ? 'success' : type === 'warning' ? 'warning' : '';
+            logElement.innerHTML = log.slice(-15).map(l => `<div class="${className}">${l}</div>`).join('');
+            console.log(message);
+        }
+
+        async function debugWebGPU() {
+            const canvas = document.getElementById('canvas');
+            
+            try {
+                addLog('🚀 Starting WebGPU debug session', 'success');
+                
+                // Step 1: Check WebGPU support
+                if (!navigator.gpu) {
+                    throw new Error('WebGPU not supported');
+                }
+                addLog('✅ WebGPU is supported', 'success');
+
+                // Step 2: Get adapter
+                const adapter = await navigator.gpu.requestAdapter();
+                if (!adapter) {
+                    throw new Error('Failed to get WebGPU adapter');
+                }
+                addLog('✅ Adapter obtained', 'success');
+
+                // Step 3: Get device
+                const device = await adapter.requestDevice();
+                if (!device) {
+                    throw new Error('Failed to get WebGPU device');
+                }
+                addLog('✅ Device obtained', 'success');
+
+                // Step 4: Configure canvas
+                const context = canvas.getContext('webgpu');
+                const presentationFormat = navigator.gpu.getPreferredCanvasFormat();
+                
+                context.configure({
+                    device,
+                    format: presentationFormat,
+                    alphaMode: 'opaque',
+                });
+                addLog(`✅ Canvas configured (format: ${presentationFormat})`, 'success');
+
+                // Step 5: Create simple shader
+                const shaderCode = `
+@vertex
+fn vs_main(@location(0) position: vec2<f32>) -> @builtin(position) vec4<f32> {
+    return vec4<f32>(position, 0.0, 1.0);
+}
+
+@fragment
+fn fs_main() -> @location(0) vec4<f32> {
+    return vec4<f32>(1.0, 0.0, 0.0, 1.0);  // Red color
+}`;
+
+                const shaderModule = device.createShaderModule({
+                    label: 'simple_shader',
+                    code: shaderCode,
+                });
+                addLog('✅ Shader module created', 'success');
+
+                // Check shader compilation
+                const compilationInfo = await shaderModule.getCompilationInfo();
+                if (compilationInfo.messages.length > 0) {
+                    compilationInfo.messages.forEach(message => {
+                        addLog(`Shader: ${message.type} - ${message.message}`, 'warning');
+                    });
+                } else {
+                    addLog('✅ Shader compiled successfully', 'success');
+                }
+
+                // Step 6: Create simple triangle vertices
+                const vertices = new Float32Array([
+                    // Triangle vertices (x, y)
+                     0.0,  0.8,
+                    -0.8, -0.8,
+                     0.8, -0.8,
+                ]);
+
+                const vertexBuffer = device.createBuffer({
+                    label: 'triangle_vertices',
+                    size: vertices.byteLength,
+                    usage: GPUBufferUsage.VERTEX | GPUBufferUsage.COPY_DST,
+                    mappedAtCreation: true,
+                });
+
+                new Float32Array(vertexBuffer.getMappedRange()).set(vertices);
+                vertexBuffer.unmap();
+                addLog('✅ Vertex buffer created', 'success');
+
+                // Step 7: Create render pipeline
+                const pipeline = device.createRenderPipeline({
+                    label: 'simple_pipeline',
+                    layout: 'auto',
+                    vertex: {
+                        module: shaderModule,
+                        entryPoint: 'vs_main',
+                        buffers: [{
+                            arrayStride: 2 * 4, // 2 floats * 4 bytes
+                            attributes: [{
+                                shaderLocation: 0,
+                                offset: 0,
+                                format: 'float32x2',
+                            }],
+                        }],
+                    },
+                    fragment: {
+                        module: shaderModule,
+                        entryPoint: 'fs_main',
+                        targets: [{
+                            format: presentationFormat,
+                        }],
+                    },
+                    primitive: {
+                        topology: 'triangle-list',
+                    },
+                });
+                addLog('✅ Render pipeline created', 'success');
+
+                // Step 8: Render loop
+                let frameCount = 0;
+                function render() {
+                    const commandEncoder = device.createCommandEncoder({
+                        label: 'render_commands'
+                    });
+
+                    const textureView = context.getCurrentTexture().createView();
+                    const renderPass = commandEncoder.beginRenderPass({
+                        label: 'main_render_pass',
+                        colorAttachments: [{
+                            view: textureView,
+                            clearValue: { r: 0.1, g: 0.1, b: 0.3, a: 1.0 }, // Dark blue background
+                            loadOp: 'clear',
+                            storeOp: 'store',
+                        }],
+                    });
+
+                    renderPass.setPipeline(pipeline);
+                    renderPass.setVertexBuffer(0, vertexBuffer);
+                    renderPass.draw(3); // 3 vertices for triangle
+                    renderPass.end();
+
+                    device.queue.submit([commandEncoder.finish()]);
+                    
+                    frameCount++;
+                    if (frameCount % 60 === 0) {
+                        addLog(`✅ Rendered ${frameCount} frames`, 'success');
+                    }
+                    
+                    requestAnimationFrame(render);
+                }
+
+                addLog('🎨 Starting render loop...', 'success');
+                render();
+
+            } catch (error) {
+                addLog(`❌ Error: ${error.message}`, 'error');
+                console.error('Debug error:', error);
+            }
+        }
+
+        // Start debug
+        debugWebGPU();
+    </script>
+</body>
+</html>

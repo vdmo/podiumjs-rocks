@@ -1,0 +1,155 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PodiumJS - Image Loading Test</title>
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            background: #000;
+            font-family: Arial, sans-serif;
+        }
+        #canvas {
+            display: block;
+            width: 100vw;
+            height: 100vh;
+        }
+        #info {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            color: white;
+            font-size: 14px;
+            z-index: 100;
+            background: rgba(0, 0, 0, 0.8);
+            padding: 15px;
+            border-radius: 8px;
+        }
+    </style>
+</head>
+<body>
+    <canvas id="canvas"></canvas>
+    
+    <div id="info">
+        <h3>Image Loading Test</h3>
+        <div id="status">Loading...</div>
+        <div style="margin-top: 10px;">
+            <input type="file" id="fileInput" accept="image/*" style="color: white;">
+            <button id="loadBtn" style="margin-left: 10px;">Load Image</button>
+        </div>
+    </div>
+
+    <script type="module">
+        import { Podium } from '../src/index.ts';
+
+        let podium;
+
+        async function init() {
+            const canvas = document.getElementById('canvas');
+            const status = document.getElementById('status');
+            
+            try {
+                if (!Podium.isSupported()) {
+                    status.innerHTML = '<span style="color: #ff6b6b;">❌ WebGPU not supported</span>';
+                    return;
+                }
+
+                status.innerHTML = '✅ WebGPU supported, initializing...';
+
+                podium = new Podium({
+                    canvas: canvas,
+                    backgroundColor: [0.1, 0.1, 0.2, 1.0],
+                    autoResize: true
+                });
+
+                const success = await podium.initialize();
+                if (!success) {
+                    throw new Error('Failed to initialize PodiumJS');
+                }
+
+                status.innerHTML = '✅ Ready! Select an image file to load.';
+                podium.startRenderLoop();
+
+                // Setup file loading
+                const fileInput = document.getElementById('fileInput');
+                const loadBtn = document.getElementById('loadBtn');
+
+                loadBtn.addEventListener('click', () => {
+                    const file = fileInput.files[0];
+                    if (file) {
+                        loadImageFile(file);
+                    } else {
+                        status.innerHTML = '⚠️ Please select an image file first.';
+                    }
+                });
+
+                // Also load on file change
+                fileInput.addEventListener('change', () => {
+                    const file = fileInput.files[0];
+                    if (file) {
+                        loadImageFile(file);
+                    }
+                });
+
+            } catch (error) {
+                console.error('Error:', error);
+                status.innerHTML = `<span style="color: #ff6b6b;">❌ Error: ${error.message}</span>`;
+            }
+        }
+
+        async function loadImageFile(file) {
+            const status = document.getElementById('status');
+            
+            try {
+                status.innerHTML = `📁 Loading ${file.name}...`;
+                
+                const reader = new FileReader();
+                reader.onload = async (e) => {
+                    try {
+                        // Clear existing planes
+                        const stats = podium.getStats();
+                        if (stats.frameCount > 0) {
+                            // Remove existing plane if any
+                            podium.removePlane?.('imageplane');
+                        }
+
+                        const plane = await podium.createUniformPlane(
+                            'imageplane',
+                            e.target.result,
+                            { width: 2.0, height: 1.5 }
+                        );
+
+                        if (plane) {
+                            podium.setTransform('imageplane', {
+                                position: [0, 0, 0],
+                                scale: [1, 1, 1]
+                            });
+                            status.innerHTML = `✅ Image loaded: ${file.name}`;
+                        } else {
+                            throw new Error('Failed to create plane with image');
+                        }
+
+                    } catch (error) {
+                        console.error('Image loading error:', error);
+                        status.innerHTML = `❌ Failed to load image: ${error.message}`;
+                    }
+                };
+                
+                reader.onerror = () => {
+                    status.innerHTML = `❌ Failed to read file: ${file.name}`;
+                };
+                
+                reader.readAsDataURL(file);
+                
+            } catch (error) {
+                console.error('File handling error:', error);
+                status.innerHTML = `❌ Error handling file: ${error.message}`;
+            }
+        }
+
+        init();
+    </script>
+</body>
+</html>

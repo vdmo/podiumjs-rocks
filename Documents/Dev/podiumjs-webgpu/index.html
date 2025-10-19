@@ -1,0 +1,92 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PodiumJS - Examples</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 20px;
+            background: #f0f0f0;
+        }
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+        }
+        .example {
+            background: white;
+            margin: 20px 0;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        .example h3 {
+            margin-top: 0;
+            color: #333;
+        }
+        .example a {
+            display: inline-block;
+            padding: 10px 20px;
+            background: #007acc;
+            color: white;
+            text-decoration: none;
+            border-radius: 4px;
+            margin-right: 10px;
+        }
+        .example a:hover {
+            background: #005a9e;
+        }
+        .warning {
+            background: #fff3cd;
+            border: 1px solid #ffeaa7;
+            color: #856404;
+            padding: 15px;
+            border-radius: 4px;
+            margin-bottom: 20px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🏆 PodiumJS Examples</h1>
+        <p>WebGPU-based alternative to Curtains.js</p>
+        
+        <div class="warning">
+            <strong>⚠️ WebGPU Required:</strong> These examples require WebGPU support. 
+            Use Chrome 113+, Edge 113+, or Firefox Nightly with WebGPU enabled.
+        </div>
+
+        <div class="example">
+            <h3>🔧 Debug Example</h3>
+            <p>Minimal WebGPU test to verify basic rendering functionality.</p>
+            <a href="/examples/debug.html">View Debug</a>
+        </div>
+
+        <div class="example">
+            <h3>Simple Plane</h3>
+            <p>Single textured plane test without complex features.</p>
+            <a href="/examples/simple.html">View Simple</a>
+        </div>
+
+        <div class="example">
+            <h3>Basic Example</h3>
+            <p>Simple textured planes with basic interactions and animations.</p>
+            <a href="/examples/basic.html">View Example</a>
+        </div>
+
+        <div class="example">
+            <h3>🎨 Post-Processing Effects</h3>
+            <p>Advanced post-processing pipeline with blur, bloom, color correction, vignette, and film grain effects.</p>
+            <a href="/examples/postprocessing.html">View Example</a>
+        </div>
+
+        <div class="example">
+            <h3>📚 Documentation</h3>
+            <p>Learn more about PodiumJS and its API.</p>
+            <a href="https://github.com/your-username/podiumjs-webgpu" target="_blank">View GitHub</a>
+        </div>
+    </div>
+</body>
+</html>

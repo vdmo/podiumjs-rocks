@@ -1,0 +1,348 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PodiumJS - Basic Example</title>
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            background: #000;
+            font-family: Arial, sans-serif;
+            overflow: hidden;
+        }
+
+        #canvas {
+            display: block;
+            width: 100vw;
+            height: 100vh;
+        }
+
+        #info {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            color: white;
+            font-size: 14px;
+            z-index: 100;
+            background: rgba(0, 0, 0, 0.7);
+            padding: 10px;
+            border-radius: 5px;
+        }
+
+        #controls {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            color: white;
+            font-size: 14px;
+            z-index: 100;
+            background: rgba(0, 0, 0, 0.7);
+            padding: 10px;
+            border-radius: 5px;
+        }
+
+        button {
+            background: #333;
+            color: white;
+            border: none;
+            padding: 5px 10px;
+            margin: 2px;
+            border-radius: 3px;
+            cursor: pointer;
+        }
+
+        button:hover {
+            background: #555;
+        }
+
+        .error {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            color: #ff6b6b;
+            text-align: center;
+            z-index: 100;
+            background: rgba(0, 0, 0, 0.8);
+            padding: 20px;
+            border-radius: 10px;
+        }
+    </style>
+</head>
+<body>
+    <canvas id="canvas"></canvas>
+    
+    <div id="info">
+        <h3>PodiumJS Basic Example</h3>
+        <div id="stats">Loading...</div>
+    </div>
+
+    <div id="controls">
+        <h4>Controls</h4>
+        <button onclick="togglePlane('plane1')">Toggle Plane 1</button>
+        <button onclick="togglePlane('plane2')">Toggle Plane 2</button>
+        <button onclick="addRandomPlane()">Add Random Plane</button>
+        <button onclick="animatePlanes()">Animate Planes</button>
+    </div>
+
+    <script type="module">
+        import { Podium } from '../src/index.ts';
+
+        let podium;
+        let planeCount = 0;
+        let animating = false;
+
+        async function init() {
+            const canvas = document.getElementById('canvas');
+            const statsDiv = document.getElementById('stats');
+            
+            // Check WebGPU support
+            if (!Podium.isSupported()) {
+                document.body.innerHTML = `
+                    <div class="error">
+                        <h2>WebGPU Not Supported</h2>
+                        <p>Your browser doesn't support WebGPU yet.</p>
+                        <p>Try Chrome Canary with --enable-unsafe-webgpu flag, or use a supported browser.</p>
+                    </div>
+                `;
+                return;
+            }
+
+            try {
+                // Initialize PodiumJS
+                podium = new Podium({
+                    canvas: canvas,
+                    backgroundColor: [0.1, 0.1, 0.2, 1.0],
+                    autoResize: true
+                });
+
+                const success = await podium.initialize();
+                if (!success) {
+                    throw new Error('Failed to initialize PodiumJS');
+                }
+                
+                // Make podium globally accessible for debugging
+                window.podium = podium;
+
+                // Create example image data URLs (simple colored squares)
+                const createImageDataURL = (color) => {
+                    const canvas = document.createElement('canvas');
+                    canvas.width = 256;
+                    canvas.height = 256;
+                    const ctx = canvas.getContext('2d');
+                    ctx.fillStyle = color;
+                    ctx.fillRect(0, 0, 256, 256);
+                    
+                    // Add some pattern
+                    ctx.fillStyle = 'rgba(255, 255, 255, 0.1)';
+                    for (let i = 0; i < 8; i++) {
+                        for (let j = 0; j < 8; j++) {
+                            if ((i + j) % 2 === 0) {
+                                ctx.fillRect(i * 32, j * 32, 32, 32);
+                            }
+                        }
+                    }
+                    
+                    return canvas.toDataURL();
+                };
+
+                // Create two textured planes with uniform support
+                console.log('Creating plane 1...');
+                const plane1 = await podium.createUniformPlane(
+                    'plane1', 
+                    createImageDataURL('#ff6b6b'),
+                    { width: 1.0, height: 1.0 }
+                );
+                console.log('Plane 1 created:', plane1);
+
+                if (!plane1) {
+                    console.error('Failed to create plane 1, stopping initialization');
+                    throw new Error('Plane creation failed');
+                }
+
+                console.log('Creating plane 2...');
+                const plane2 = await podium.createUniformPlane(
+                    'plane2', 
+                    createImageDataURL('#4ecdc4'),
+                    { width: 0.8, height: 0.8 }
+                );
+                console.log('Plane 2 created:', plane2);
+
+                if (!plane2) {
+                    console.error('Failed to create plane 2, stopping initialization');
+                    throw new Error('Plane creation failed');
+                }
+
+                // Position the planes
+                console.log('Positioning planes...');
+                const transform1 = podium.setTransform('plane1', { 
+                    position: [-0.5, 0, 0],
+                    scale: [0.8, 0.8, 1]
+                });
+                console.log('Plane 1 transform set:', transform1);
+
+                const transform2 = podium.setTransform('plane2', { 
+                    position: [0.5, 0, 0],
+                    scale: [0.6, 0.6, 1]
+                });
+                console.log('Plane 2 transform set:', transform2);
+                console.log('Planes positioned successfully');
+
+                planeCount = 2;
+
+                // Start render loop
+                podium.startRenderLoop();
+
+                // Update stats periodically
+                setInterval(() => {
+                    const stats = podium.getStats();
+                    statsDiv.innerHTML = `
+                        Frames: ${stats.frameCount}<br>
+                        FPS: ${Math.round(stats.fps)}<br>
+                        Time: ${stats.elapsedTime.toFixed(1)}s<br>
+                        Objects: ${planeCount}
+                    `;
+                }, 100);
+
+                console.log('PodiumJS example initialized successfully');
+
+            } catch (error) {
+                console.error('Initialization error:', error);
+                document.body.innerHTML = `
+                    <div class="error">
+                        <h2>Initialization Error</h2>
+                        <p>${error.message}</p>
+                        <p>Check the console for more details.</p>
+                    </div>
+                `;
+            }
+        }
+
+        // Control functions
+        window.togglePlane = (id) => {
+            const renderObject = podium.getRenderObject(id);
+            if (renderObject) {
+                renderObject.visible = !renderObject.visible;
+            }
+        };
+
+        window.addRandomPlane = async () => {
+            if (!podium) return;
+            
+            const colors = ['#ff9ff3', '#54a0ff', '#5f27cd', '#00d2d3', '#ff9f43', '#10ac84'];
+            const randomColor = colors[Math.floor(Math.random() * colors.length)];
+            
+            const createImageDataURL = (color) => {
+                const canvas = document.createElement('canvas');
+                canvas.width = 128;
+                canvas.height = 128;
+                const ctx = canvas.getContext('2d');
+                ctx.fillStyle = color;
+                ctx.fillRect(0, 0, 128, 128);
+                return canvas.toDataURL();
+            };
+
+            const planeId = `plane${planeCount + 1}`;
+            const newPlane = await podium.createUniformPlane(
+                planeId, 
+                createImageDataURL(randomColor),
+                { width: 0.5, height: 0.5 }
+            );
+
+            if (newPlane) {
+                // Random position
+                podium.setTransform(planeId, {
+                    position: [
+                        (Math.random() - 0.5) * 2,
+                        (Math.random() - 0.5) * 2,
+                        0
+                    ],
+                    scale: [0.3 + Math.random() * 0.4, 0.3 + Math.random() * 0.4, 1]
+                });
+                
+                planeCount++;
+                console.log(`Created random plane: ${planeId}`);
+            } else {
+                console.error(`Failed to create random plane: ${planeId}`);
+            }
+        };
+
+        window.animatePlanes = () => {
+            animating = !animating;
+            
+            // Update button text
+            const animateBtn = document.querySelector('button[onclick="animatePlanes()"]');
+            if (animateBtn) {
+                animateBtn.textContent = animating ? 'Stop Animation' : 'Animate Planes';
+                animateBtn.style.backgroundColor = animating ? '#ff6b6b' : '#333';
+            }
+            
+            if (animating) {
+                console.log('🎬 Starting plane animations - planeCount:', planeCount);
+                let frameCount = 0;
+                const animate = () => {
+                    if (!animating) {
+                        console.log('🛑 Stopping plane animations');
+                        return;
+                    }
+                    
+                    const time = performance.now() * 0.001;
+                    frameCount++;
+                    
+                    // Debug every 60 frames (about once per second)
+                    if (frameCount % 60 === 0) {
+                        console.log(`🎞️ Animation frame ${frameCount}, time: ${time.toFixed(2)}s`);
+                    }
+                    
+                    // Only animate planes that actually exist
+                    const existingPlanes = [];
+                    for (let i = 1; i <= planeCount; i++) {
+                        const planeId = `plane${i}`;
+                        const renderObject = podium.getRenderObject(planeId);
+                        if (renderObject) {
+                            existingPlanes.push({ id: planeId, index: i });
+                        }
+                    }
+                    
+                    for (const { id: planeId, index: i } of existingPlanes) {
+                        const newPosition = [
+                            Math.sin(time + i) * 0.8,
+                            Math.cos(time * 1.3 + i) * 0.6,
+                            0
+                        ];
+                        const newScale = [
+                            0.4 + Math.sin(time * 2 + i) * 0.2,
+                            0.4 + Math.cos(time * 2.5 + i) * 0.2,
+                            1
+                        ];
+                        
+                        // Debug first plane every 60 frames
+                        if (frameCount % 60 === 0 && i === 1) {
+                            console.log(`🎯 Setting ${planeId} transform:`, { position: newPosition, scale: newScale });
+                        }
+                        
+                        const success = podium.setTransform(planeId, {
+                            position: newPosition,
+                            scale: newScale
+                        });
+                        
+                        if (!success && i === 1) {
+                            console.warn('❌ Transform failed for', planeId);
+                        }
+                    }
+                    
+                    requestAnimationFrame(animate);
+                };
+                animate();
+            } else {
+                console.log('Pausing plane animations');
+            }
+        };
+
+        // Initialize when page loads
+        init();
+    </script>
+</body>
+</html>

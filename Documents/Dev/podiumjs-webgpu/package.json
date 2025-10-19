@@ -1,0 +1,43 @@
+{
+  "name": "podiumjs",
+  "version": "0.1.0",
+  "description": "A WebGPU-based alternative to Curtains.js for creating interactive planes and post-processing effects",
+  "main": "dist/podium.js",
+  "module": "dist/podium.esm.js",
+  "types": "dist/index.d.ts",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc && vite build",
+    "preview": "vite preview",
+    "typecheck": "tsc --noEmit",
+    "lint": "eslint src --ext ts,js --report-unused-disable-directives --max-warnings 0"
+  },
+  "keywords": [
+    "webgpu",
+    "3d",
+    "graphics",
+    "shaders",
+    "post-processing",
+    "planes",
+    "curtains"
+  ],
+  "author": "PodiumJS Team",
+  "license": "MIT",
+  "devDependencies": {
+    "@types/node": "^20.0.0",
+    "@typescript-eslint/eslint-plugin": "^6.0.0",
+    "@typescript-eslint/parser": "^6.0.0",
+    "@webgpu/types": "^0.1.66",
+    "eslint": "^8.45.0",
+    "typescript": "^5.0.2",
+    "vite": "^5.0.0",
+    "vite-plugin-dts": "^3.0.0"
+  },
+  "files": [
+    "dist"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/podiumjs/podiumjs.git"
+  }
+}

@@ -1,0 +1,592 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PodiumJS - Post-Processing Effects</title>
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            background: #000;
+            font-family: Arial, sans-serif;
+            overflow: hidden;
+        }
+
+        #canvas {
+            display: block;
+            width: 100vw;
+            height: 100vh;
+        }
+
+        #info {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            color: white;
+            font-size: 14px;
+            z-index: 100;
+            background: rgba(0, 0, 0, 0.8);
+            padding: 15px;
+            border-radius: 8px;
+            max-width: 300px;
+        }
+
+        #controls {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            color: white;
+            font-size: 12px;
+            z-index: 100;
+            background: rgba(0, 0, 0, 0.8);
+            padding: 15px;
+            border-radius: 8px;
+            max-width: 280px;
+        }
+
+        .effect-group {
+            margin-bottom: 15px;
+            padding: 10px;
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 4px;
+        }
+
+        .effect-group h4 {
+            margin: 0 0 8px 0;
+            color: #4ecdc4;
+        }
+
+        .control-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin: 5px 0;
+        }
+
+        .control-row label {
+            font-size: 11px;
+            flex: 1;
+        }
+
+        .control-row input[type="range"] {
+            flex: 2;
+            margin: 0 8px;
+        }
+
+        .control-row input[type="checkbox"] {
+            margin-left: 10px;
+        }
+
+        .value-display {
+            font-size: 10px;
+            color: #999;
+            min-width: 35px;
+            text-align: right;
+        }
+
+        button {
+            background: #333;
+            color: white;
+            border: none;
+            padding: 8px 12px;
+            margin: 4px 2px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 11px;
+        }
+
+        button:hover {
+            background: #555;
+        }
+
+        button.active {
+            background: #4ecdc4;
+        }
+
+        .error {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            color: #ff6b6b;
+            text-align: center;
+            z-index: 100;
+            background: rgba(0, 0, 0, 0.9);
+            padding: 30px;
+            border-radius: 10px;
+            max-width: 500px;
+        }
+
+        .stats {
+            font-family: monospace;
+            font-size: 11px;
+            line-height: 1.4;
+        }
+    </style>
+</head>
+<body>
+    <canvas id="canvas"></canvas>
+    
+    <div id="info">
+        <h3>🎨 Post-Processing Demo</h3>
+        <div class="stats" id="stats">Loading...</div>
+        <div style="margin-top: 10px;">
+            <button id="resetBtn">Reset All</button>
+            <button id="randomBtn">Random Settings</button>
+        </div>
+    </div>
+
+    <div id="controls">
+        <h4>🎛️ Effect Controls</h4>
+        
+        <div class="effect-group">
+            <h4>Blur</h4>
+            <div class="control-row">
+                <label>Enable</label>
+                <input type="checkbox" id="blurEnable">
+            </div>
+            <div class="control-row">
+                <label>Intensity</label>
+                <input type="range" id="blurIntensity" min="0" max="3" step="0.1" value="1">
+                <span class="value-display" id="blurIntensityVal">1.0</span>
+            </div>
+            <div class="control-row">
+                <label>Radius</label>
+                <input type="range" id="blurRadius" min="0.5" max="5" step="0.1" value="2">
+                <span class="value-display" id="blurRadiusVal">2.0</span>
+            </div>
+        </div>
+
+        <div class="effect-group">
+            <h4>Bloom</h4>
+            <div class="control-row">
+                <label>Enable</label>
+                <input type="checkbox" id="bloomEnable">
+            </div>
+            <div class="control-row">
+                <label>Intensity</label>
+                <input type="range" id="bloomIntensity" min="0" max="2" step="0.1" value="0.8">
+                <span class="value-display" id="bloomIntensityVal">0.8</span>
+            </div>
+            <div class="control-row">
+                <label>Threshold</label>
+                <input type="range" id="bloomThreshold" min="0.1" max="1" step="0.05" value="0.7">
+                <span class="value-display" id="bloomThresholdVal">0.7</span>
+            </div>
+        </div>
+
+        <div class="effect-group">
+            <h4>Color Correction</h4>
+            <div class="control-row">
+                <label>Enable</label>
+                <input type="checkbox" id="colorEnable">
+            </div>
+            <div class="control-row">
+                <label>Brightness</label>
+                <input type="range" id="colorBrightness" min="-0.5" max="0.5" step="0.05" value="0">
+                <span class="value-display" id="colorBrightnessVal">0.0</span>
+            </div>
+            <div class="control-row">
+                <label>Contrast</label>
+                <input type="range" id="colorContrast" min="0.5" max="2" step="0.05" value="1">
+                <span class="value-display" id="colorContrastVal">1.0</span>
+            </div>
+            <div class="control-row">
+                <label>Saturation</label>
+                <input type="range" id="colorSaturation" min="0" max="2" step="0.05" value="1">
+                <span class="value-display" id="colorSaturationVal">1.0</span>
+            </div>
+        </div>
+
+        <div class="effect-group">
+            <h4>Vignette</h4>
+            <div class="control-row">
+                <label>Enable</label>
+                <input type="checkbox" id="vignetteEnable">
+            </div>
+            <div class="control-row">
+                <label>Intensity</label>
+                <input type="range" id="vignetteIntensity" min="0" max="1" step="0.05" value="0.5">
+                <span class="value-display" id="vignetteIntensityVal">0.5</span>
+            </div>
+            <div class="control-row">
+                <label>Radius</label>
+                <input type="range" id="vignetteRadius" min="0.3" max="1.2" step="0.05" value="0.8">
+                <span class="value-display" id="vignetteRadiusVal">0.8</span>
+            </div>
+        </div>
+
+        <div class="effect-group">
+            <h4>Film Grain</h4>
+            <div class="control-row">
+                <label>Enable</label>
+                <input type="checkbox" id="grainEnable">
+            </div>
+            <div class="control-row">
+                <label>Intensity</label>
+                <input type="range" id="grainIntensity" min="0" max="0.5" step="0.01" value="0.1">
+                <span class="value-display" id="grainIntensityVal">0.1</span>
+            </div>
+        </div>
+    </div>
+
+    <script type="module">
+        import { Podium } from '../src/index.ts';
+
+        let podium;
+        let animating = true;
+        let planeCount = 0;
+
+        // Effect controls mapping
+        const effects = {
+            blur: {
+                enable: 'blurEnable',
+                params: ['blurIntensity', 'blurRadius']
+            },
+            bloom: {
+                enable: 'bloomEnable',
+                params: ['bloomIntensity', 'bloomThreshold']
+            },
+            colorCorrection: {
+                enable: 'colorEnable',
+                params: ['colorBrightness', 'colorContrast', 'colorSaturation']
+            },
+            vignette: {
+                enable: 'vignetteEnable',
+                params: ['vignetteIntensity', 'vignetteRadius']
+            },
+            filmGrain: {
+                enable: 'grainEnable',
+                params: ['grainIntensity']
+            }
+        };
+
+        async function init() {
+            const canvas = document.getElementById('canvas');
+            const statsDiv = document.getElementById('stats');
+            
+            console.log('🚀 Starting postprocessing.html initialization...');
+            
+            // Check WebGPU support
+            console.log('🔍 Checking WebGPU support...');
+            if (!Podium.isSupported()) {
+                document.body.innerHTML = `
+                    <div class="error">
+                        <h2>WebGPU Not Supported</h2>
+                        <p>Your browser doesn't support WebGPU yet.</p>
+                        <p>Try Chrome 113+, Edge 113+, or Firefox Nightly with WebGPU enabled.</p>
+                    </div>
+                `;
+                return;
+            }
+
+            try {
+                console.log('📦 Creating PodiumJS instance with post-processing...');
+                // Initialize PodiumJS with post-processing enabled
+                podium = new Podium({
+                    canvas: canvas,
+                    backgroundColor: [0.05, 0.05, 0.1, 1.0],
+                    autoResize: true,
+                    enablePostProcessing: true
+                });
+                console.log('✅ PodiumJS instance created');
+
+                console.log('⚙️ Initializing PodiumJS...');
+                const success = await podium.initialize();
+                if (!success) {
+                    console.error('❌ PodiumJS initialization failed');
+                    throw new Error('Failed to initialize PodiumJS');
+                }
+                console.log('✅ PodiumJS initialized successfully');
+                
+                // Make podium globally accessible for debugging
+                window.podium = podium;
+
+                // Create dynamic colored texture
+                const createDynamicTexture = (hue, saturation = 70, lightness = 60) => {
+                    const canvas = document.createElement('canvas');
+                    canvas.width = 512;
+                    canvas.height = 512;
+                    const ctx = canvas.getContext('2d');
+                    
+                    // Create gradient with pattern
+                    const gradient = ctx.createRadialGradient(256, 256, 0, 256, 256, 256);
+                    gradient.addColorStop(0, `hsl(${hue}, ${saturation}%, ${lightness + 20}%)`);
+                    gradient.addColorStop(0.6, `hsl(${hue + 30}, ${saturation}%, ${lightness}%)`);
+                    gradient.addColorStop(1, `hsl(${hue - 30}, ${saturation - 20}%, ${lightness - 20}%)`);
+                    
+                    ctx.fillStyle = gradient;
+                    ctx.fillRect(0, 0, 512, 512);
+                    
+                    // Add some pattern details
+                    ctx.fillStyle = `hsla(${hue + 180}, 50%, 80%, 0.1)`;
+                    for (let i = 0; i < 20; i++) {
+                        for (let j = 0; j < 20; j++) {
+                            if ((i + j) % 3 === 0) {
+                                ctx.fillRect(i * 25.6, j * 25.6, 12.8, 12.8);
+                            }
+                        }
+                    }
+                    
+                    return canvas.toDataURL();
+                };
+
+                // Create multiple planes with different colors and effects
+                const planes = [
+                    { id: 'plane1', hue: 0, pos: [-0.6, 0.3, 0], scale: [0.7, 0.7, 1] },
+                    { id: 'plane2', hue: 120, pos: [0.6, 0.3, 0], scale: [0.6, 0.8, 1] },
+                    { id: 'plane3', hue: 240, pos: [0, -0.4, 0], scale: [0.8, 0.6, 1] },
+                    { id: 'plane4', hue: 60, pos: [-0.3, -0.1, 0], scale: [0.4, 0.9, 1] },
+                    { id: 'plane5', hue: 300, pos: [0.4, -0.2, 0], scale: [0.5, 0.7, 1] }
+                ];
+
+                console.log(`🎨 Creating ${planes.length} planes...`);
+                for (const plane of planes) {
+                    console.log(`🔵 Creating plane: ${plane.id} (hue: ${plane.hue})`);
+                    const created = await podium.createUniformPlane(
+                        plane.id,
+                        createDynamicTexture(plane.hue),
+                        { width: 1.0, height: 1.0 }
+                    );
+
+                    if (created) {
+                        console.log(`✅ Plane ${plane.id} created successfully`);
+                        podium.setTransform(plane.id, {
+                            position: plane.pos,
+                            scale: plane.scale
+                        });
+                        planeCount++;
+                        console.log(`📍 Plane ${plane.id} positioned at [${plane.pos}], scale [${plane.scale}]`);
+                    } else {
+                        console.error(`❌ Failed to create plane: ${plane.id}`);
+                    }
+                }
+
+                console.log(`Successfully created ${planeCount} planes`);
+
+                // Debug: Check what effects are available
+                console.log('🔍 Checking available effects...');
+                if (podium.postProcessor) {
+                    console.log('📋 PostProcessor exists');
+                    // Try to get effect info
+                    Object.keys(effects).forEach(effectName => {
+                        const success = podium.updateEffect(effectName, {});
+                        console.log(`🎭 Effect "${effectName}": ${success ? 'AVAILABLE' : 'NOT FOUND'}`);
+                    });
+                } else {
+                    console.error('❌ PostProcessor not available!');
+                }
+
+                // Set up effect controls
+                setupEffectControls();
+
+                // Start animations
+                startAnimations();
+
+                // Start render loop
+                podium.startRenderLoop();
+
+                // Update stats periodically
+                setInterval(() => {
+                    const stats = podium.getStats();
+                    const activeEffects = Object.keys(effects).filter(effect => 
+                        document.getElementById(effects[effect].enable).checked
+                    ).join(', ') || 'None';
+
+                    statsDiv.innerHTML = `
+                        Frames: ${stats.frameCount}<br>
+                        FPS: ${Math.round(stats.fps)}<br>
+                        Time: ${stats.elapsedTime.toFixed(1)}s<br>
+                        Objects: ${planeCount}<br>
+                        Active Effects: ${activeEffects}<br>
+                        Post-Processing: ${podium.postProcessor ? '✅ Enabled' : '❌ Disabled'}
+                    `;
+                }, 100);
+
+                console.log('PodiumJS post-processing example initialized successfully');
+
+            } catch (error) {
+                console.error('Initialization error:', error);
+                document.body.innerHTML = `
+                    <div class="error">
+                        <h2>Initialization Error</h2>
+                        <p>${error.message}</p>
+                        <p>Post-processing requires WebGPU support. Check the console for more details.</p>
+                    </div>
+                `;
+            }
+        }
+
+        function setupEffectControls() {
+            // Set up individual effect controls
+            Object.keys(effects).forEach(effectName => {
+                const effect = effects[effectName];
+                
+                // Enable/disable checkbox
+                const enableCheckbox = document.getElementById(effect.enable);
+                enableCheckbox.addEventListener('change', () => {
+                    podium.setEffectEnabled(effectName, enableCheckbox.checked);
+                });
+
+                // Parameter sliders
+                effect.params.forEach(paramId => {
+                    const slider = document.getElementById(paramId);
+                    const valueDisplay = document.getElementById(paramId + 'Val');
+                    
+                    slider.addEventListener('input', () => {
+                        const value = parseFloat(slider.value);
+                        valueDisplay.textContent = value.toFixed(2);
+                        
+                        // Auto-enable effect when slider is moved
+                        const enableCheckbox = document.getElementById(effect.enable);
+                        if (!enableCheckbox.checked) {
+                            enableCheckbox.checked = true;
+                            podium.setEffectEnabled(effectName, true);
+                        }
+                        
+                        // Map slider ID to effect parameter name
+                        const paramName = paramId.replace(effectName.charAt(0).toLowerCase() + effectName.slice(1), '').toLowerCase();
+                        const actualParamName = paramName || paramId.replace(/^[a-z]+([A-Z])/, (match, p1) => p1.toLowerCase());
+                        
+                        const updateObj = {};
+                        if (paramId.includes('Intensity')) updateObj.intensity = value;
+                        else if (paramId.includes('Radius')) updateObj.radius = value;
+                        else if (paramId.includes('Threshold')) updateObj.threshold = value;
+                        else if (paramId.includes('Brightness')) updateObj.brightness = value;
+                        else if (paramId.includes('Contrast')) updateObj.contrast = value;
+                        else if (paramId.includes('Saturation')) updateObj.saturation = value;
+                        
+                        podium.updateEffect(effectName, updateObj);
+                    });
+
+                    // Initialize value display
+                    if (valueDisplay) {
+                        valueDisplay.textContent = parseFloat(slider.value).toFixed(2);
+                    }
+                });
+            });
+
+            // Reset button
+            document.getElementById('resetBtn').addEventListener('click', () => {
+                // Disable all effects
+                Object.keys(effects).forEach(effectName => {
+                    document.getElementById(effects[effectName].enable).checked = false;
+                    podium.setEffectEnabled(effectName, false);
+                });
+
+                // Reset all sliders to default values
+                document.getElementById('blurIntensity').value = '1.0';
+                document.getElementById('blurRadius').value = '2.0';
+                document.getElementById('bloomIntensity').value = '0.8';
+                document.getElementById('bloomThreshold').value = '0.7';
+                document.getElementById('colorBrightness').value = '0';
+                document.getElementById('colorContrast').value = '1';
+                document.getElementById('colorSaturation').value = '1';
+                document.getElementById('vignetteIntensity').value = '0.5';
+                document.getElementById('vignetteRadius').value = '0.8';
+                document.getElementById('grainIntensity').value = '0.1';
+
+                // Update value displays
+                updateAllValueDisplays();
+            });
+
+            // Random button
+            document.getElementById('randomBtn').addEventListener('click', () => {
+                // Randomly enable/disable effects
+                Object.keys(effects).forEach(effectName => {
+                    const enable = Math.random() > 0.3;
+                    document.getElementById(effects[effectName].enable).checked = enable;
+                    podium.setEffectEnabled(effectName, enable);
+                });
+
+                // Random parameter values
+                document.getElementById('blurIntensity').value = (Math.random() * 2 + 0.5).toFixed(1);
+                document.getElementById('blurRadius').value = (Math.random() * 3 + 1).toFixed(1);
+                document.getElementById('bloomIntensity').value = (Math.random() * 1.5 + 0.3).toFixed(1);
+                document.getElementById('bloomThreshold').value = (Math.random() * 0.6 + 0.3).toFixed(2);
+                document.getElementById('colorBrightness').value = ((Math.random() - 0.5) * 0.4).toFixed(2);
+                document.getElementById('colorContrast').value = (Math.random() * 1 + 0.8).toFixed(2);
+                document.getElementById('colorSaturation').value = (Math.random() * 1.5 + 0.5).toFixed(2);
+                document.getElementById('vignetteIntensity').value = (Math.random() * 0.8 + 0.2).toFixed(2);
+                document.getElementById('vignetteRadius').value = (Math.random() * 0.6 + 0.5).toFixed(2);
+                document.getElementById('grainIntensity').value = (Math.random() * 0.3 + 0.05).toFixed(3);
+
+                updateAllValueDisplays();
+                updateAllEffectParams();
+            });
+        }
+
+        function updateAllValueDisplays() {
+            const sliders = document.querySelectorAll('input[type="range"]');
+            sliders.forEach(slider => {
+                const valueDisplay = document.getElementById(slider.id + 'Val');
+                if (valueDisplay) {
+                    valueDisplay.textContent = parseFloat(slider.value).toFixed(slider.step < 0.1 ? 3 : 2);
+                }
+            });
+        }
+
+        function updateAllEffectParams() {
+            // Update all effect parameters
+            podium.updateEffect('blur', {
+                intensity: parseFloat(document.getElementById('blurIntensity').value),
+                radius: parseFloat(document.getElementById('blurRadius').value)
+            });
+            podium.updateEffect('bloom', {
+                intensity: parseFloat(document.getElementById('bloomIntensity').value),
+                threshold: parseFloat(document.getElementById('bloomThreshold').value)
+            });
+            podium.updateEffect('colorCorrection', {
+                brightness: parseFloat(document.getElementById('colorBrightness').value),
+                contrast: parseFloat(document.getElementById('colorContrast').value),
+                saturation: parseFloat(document.getElementById('colorSaturation').value)
+            });
+            podium.updateEffect('vignette', {
+                intensity: parseFloat(document.getElementById('vignetteIntensity').value),
+                radius: parseFloat(document.getElementById('vignetteRadius').value)
+            });
+            podium.updateEffect('filmGrain', {
+                intensity: parseFloat(document.getElementById('grainIntensity').value)
+            });
+        }
+
+        function startAnimations() {
+            const animate = () => {
+                if (!animating) return;
+                
+                const time = performance.now() * 0.001;
+                
+                // Animate planes with different patterns
+                for (let i = 1; i <= planeCount; i++) {
+                    const planeId = `plane${i}`;
+                    const renderObject = podium.getRenderObject(planeId);
+                    
+                    if (renderObject) {
+                        const offset = i * Math.PI * 0.4;
+                        
+                        podium.setTransform(planeId, {
+                            position: [
+                                Math.sin(time * 0.8 + offset) * 0.6,
+                                Math.cos(time * 0.6 + offset) * 0.4,
+                                Math.sin(time * 0.3 + offset) * 0.1
+                            ],
+                            scale: [
+                                0.4 + Math.sin(time * 1.2 + offset) * 0.3,
+                                0.4 + Math.cos(time * 1.5 + offset) * 0.3,
+                                1
+                            ]
+                        });
+                    }
+                }
+                
+                requestAnimationFrame(animate);
+            };
+            animate();
+        }
+
+        // Initialize when page loads
+        init();
+    </script>
+</body>
+</html>

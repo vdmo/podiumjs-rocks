@@ -1,0 +1,112 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PostProcessor Test</title>
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            background: #000;
+            color: white;
+            font-family: monospace;
+            padding: 20px;
+        }
+        #canvas {
+            width: 400px;
+            height: 300px;
+            border: 1px solid #333;
+        }
+        #log {
+            margin-top: 20px;
+            background: #111;
+            padding: 10px;
+            border-radius: 5px;
+            max-height: 400px;
+            overflow-y: auto;
+        }
+    </style>
+</head>
+<body>
+    <h2>PostProcessor Initialization Test</h2>
+    <canvas id="canvas" width="400" height="300"></canvas>
+    <div id="log"></div>
+
+    <script type="module">
+        import { Podium } from '../src/index.ts';
+
+        const log = document.getElementById('log');
+        function addLog(message) {
+            log.innerHTML += message + '<br>';
+            log.scrollTop = log.scrollHeight;
+        }
+
+        async function test() {
+            const canvas = document.getElementById('canvas');
+            
+            try {
+                addLog('🧪 Starting PostProcessor test...');
+                
+                if (!Podium.isSupported()) {
+                    addLog('❌ WebGPU not supported');
+                    return;
+                }
+                addLog('✅ WebGPU supported');
+
+                // Create Podium instance with post-processing enabled
+                addLog('📦 Creating Podium instance with post-processing...');
+                const podium = new Podium({
+                    canvas: canvas,
+                    backgroundColor: [0.1, 0.1, 0.2, 1.0],
+                    autoResize: false,
+                    enablePostProcessing: true
+                });
+                addLog(`✅ Podium instance created, postProcessor: ${podium.postProcessor ? 'EXISTS' : 'NULL'}`);
+
+                // Initialize
+                addLog('⚙️ Initializing Podium...');
+                const success = await podium.initialize();
+                addLog(`🎯 Initialization result: ${success ? 'SUCCESS' : 'FAILED'}`);
+                addLog(`🎭 PostProcessor after init: ${podium.postProcessor ? 'EXISTS' : 'NULL'}`);
+
+                if (podium.postProcessor) {
+                    addLog('🔍 PostProcessor exists, testing effect access...');
+                    
+                    // Test each effect
+                    const testEffects = ['blur', 'bloom', 'colorCorrection', 'vignette', 'filmGrain'];
+                    testEffects.forEach(effectName => {
+                        try {
+                            const result = podium.updateEffect(effectName, {});
+                            addLog(`🎨 Effect "${effectName}": ${result ? 'AVAILABLE' : 'NOT FOUND'}`);
+                        } catch (error) {
+                            addLog(`💥 Effect "${effectName}": ERROR - ${error.message}`);
+                        }
+                    });
+
+                    // Try to access the passes directly (for debugging)
+                    if (podium.postProcessor.passes) {
+                        addLog(`📊 Total passes in PostProcessor: ${podium.postProcessor.passes.size}`);
+                        const passIds = Array.from(podium.postProcessor.passes.keys());
+                        addLog(`📋 Pass IDs: [${passIds.join(', ')}]`);
+                    }
+                } else {
+                    addLog('❌ PostProcessor is null after initialization');
+                }
+
+                // Make globally accessible
+                window.testPodium = podium;
+                addLog('🌐 Podium accessible as window.testPodium');
+
+            } catch (error) {
+                addLog(`💥 Test failed: ${error.message}`);
+                console.error('Full error:', error);
+            }
+        }
+
+        // Simple test without console interception to avoid recursion
+
+        test();
+    </script>
+</body>
+</html>

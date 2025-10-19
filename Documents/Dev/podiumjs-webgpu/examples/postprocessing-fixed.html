@@ -1,0 +1,271 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PodiumJS - Post-Processing Fixed</title>
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            background: #000;
+            font-family: Arial, sans-serif;
+        }
+        #canvas {
+            display: block;
+            width: 100vw;
+            height: 100vh;
+        }
+        #info {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            color: white;
+            font-size: 14px;
+            z-index: 100;
+            background: rgba(0, 0, 0, 0.8);
+            padding: 15px;
+            border-radius: 8px;
+            max-width: 300px;
+        }
+        #controls {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            color: white;
+            font-size: 12px;
+            z-index: 100;
+            background: rgba(0, 0, 0, 0.8);
+            padding: 15px;
+            border-radius: 8px;
+        }
+        .control-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin: 5px 0;
+        }
+        input[type="range"] {
+            flex: 1;
+            margin: 0 8px;
+        }
+        button {
+            background: #333;
+            color: white;
+            border: none;
+            padding: 8px 12px;
+            margin: 4px 2px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 11px;
+        }
+        button:hover {
+            background: #555;
+        }
+    </style>
+</head>
+<body>
+    <canvas id="canvas"></canvas>
+    
+    <div id="info">
+        <h3>🎨 Post-Processing Fixed</h3>
+        <div id="stats">Loading...</div>
+        <div style="margin-top: 10px;">
+            <button id="togglePP">Toggle Post-Processing</button>
+            <button id="enableBlur">Enable Blur</button>
+        </div>
+    </div>
+
+    <div id="controls">
+        <h4>🎛️ Controls</h4>
+        <div class="control-row">
+            <label>Blur:</label>
+            <input type="range" id="blurIntensity" min="0" max="3" step="0.1" value="1">
+            <span id="blurVal">1.0</span>
+        </div>
+    </div>
+
+    <script type="module">
+        import { Podium } from '../src/index.ts';
+
+        let podium;
+        let postProcessingEnabled = true;  // Start with PP enabled to test blur
+        let planeCount = 0;
+
+        async function init() {
+            const canvas = document.getElementById('canvas');
+            const statsDiv = document.getElementById('stats');
+            
+            try {
+                console.log('🚀 Starting fixed post-processing example...');
+                
+                if (!Podium.isSupported()) {
+                    statsDiv.innerHTML = '<span style="color: #ff6b6b;">❌ WebGPU not supported</span>';
+                    return;
+                }
+
+                console.log('✅ WebGPU supported');
+                
+                // Start WITH post-processing enabled to test blur
+                podium = new Podium({
+                    canvas: canvas,
+                    backgroundColor: [0.05, 0.05, 0.1, 1.0],
+                    autoResize: true,
+                    enablePostProcessing: postProcessingEnabled
+                });
+
+                console.log('📦 PodiumJS instance created');
+                const success = await podium.initialize();
+                if (!success) {
+                    throw new Error('Failed to initialize PodiumJS');
+                }
+                
+                console.log('✅ PodiumJS initialized');
+                
+                // Debug: Check post-processor status
+                if (podium.postProcessor) {
+                    console.log('📋 PostProcessor exists, checking effects...');
+                    // Wait a moment for effects to initialize
+                    setTimeout(() => {
+                        console.log('🔍 Available effects check:');
+                        const testEffects = ['blur', 'bloom', 'colorCorrection', 'vignette', 'filmGrain'];
+                        testEffects.forEach(effect => {
+                            const success = podium.updateEffect(effect, {});
+                            console.log(`🎭 Effect "${effect}": ${success ? 'AVAILABLE' : 'NOT FOUND'}`);
+                        });
+                    }, 500);
+                } else {
+                    console.error('❌ PostProcessor not available!');
+                }
+                
+                window.podium = podium;
+
+                // Create bright, visible textures
+                const createBrightTexture = (hue) => {
+                    const canvas = document.createElement('canvas');
+                    canvas.width = 256;
+                    canvas.height = 256;
+                    const ctx = canvas.getContext('2d');
+                    
+                    // Very bright, saturated colors
+                    const gradient = ctx.createRadialGradient(128, 128, 0, 128, 128, 128);
+                    gradient.addColorStop(0, `hsl(${hue}, 100%, 70%)`);
+                    gradient.addColorStop(0.6, `hsl(${hue + 30}, 90%, 60%)`);
+                    gradient.addColorStop(1, `hsl(${hue - 30}, 80%, 50%)`);
+                    
+                    ctx.fillStyle = gradient;
+                    ctx.fillRect(0, 0, 256, 256);
+                    
+                    // Add bright pattern
+                    ctx.fillStyle = `hsla(${hue + 180}, 100%, 90%, 0.3)`;
+                    for (let i = 0; i < 8; i++) {
+                        for (let j = 0; j < 8; j++) {
+                            if ((i + j) % 2 === 0) {
+                                ctx.fillRect(i * 32, j * 32, 16, 16);
+                            }
+                        }
+                    }
+                    
+                    return canvas.toDataURL();
+                };
+
+                // Create fewer, larger, brighter planes with better color contrast
+                const planes = [
+                    { id: 'plane1', hue: 0, pos: [-0.7, 0, 0], scale: [0.8, 0.8, 1], name: 'Red' },
+                    { id: 'plane2', hue: 120, pos: [0.7, 0, 0], scale: [0.8, 0.8, 1], name: 'Green' },
+                    { id: 'plane3', hue: 220, pos: [0, 0, 0], scale: [0.6, 0.6, 1], name: 'Blue' }  // Changed from 240 to 220 for better blue visibility
+                ];
+
+                console.log(`🎨 Creating ${planes.length} bright planes...`);
+                for (const plane of planes) {
+                    console.log(`🔵 Creating plane: ${plane.id}`);
+                    const created = await podium.createUniformPlane(
+                        plane.id,
+                        createBrightTexture(plane.hue),
+                        { width: 1.0, height: 1.0 }
+                    );
+
+                    if (created) {
+                        console.log(`✅ Plane ${plane.id} created`);
+                        podium.setTransform(plane.id, {
+                            position: plane.pos,
+                            scale: plane.scale
+                        });
+                        planeCount++;
+                    } else {
+                        console.error(`❌ Failed to create plane: ${plane.id}`);
+                    }
+                }
+
+                console.log(`✅ Created ${planeCount} planes`);
+
+                // Start render loop
+                podium.startRenderLoop();
+
+                // Setup controls
+                setupControls();
+
+                // Update stats
+                setInterval(() => {
+                    const stats = podium.getStats();
+                    statsDiv.innerHTML = `
+                        Frames: ${stats.frameCount}<br>
+                        FPS: ${Math.round(stats.fps)}<br>
+                        Objects: ${planeCount}<br>
+                        Post-Processing: ${postProcessingEnabled ? '✅ ON' : '❌ OFF'}
+                    `;
+                }, 1000);
+
+                console.log('🎉 Setup complete! You should see 3 bright colored planes.');
+
+            } catch (error) {
+                console.error('💥 Error:', error);
+                statsDiv.innerHTML = `<span style="color: #ff6b6b;">❌ Error: ${error.message}</span>`;
+            }
+        }
+
+        function setupControls() {
+            // Toggle post-processing button
+            document.getElementById('togglePP').addEventListener('click', () => {
+                document.getElementById('stats').innerHTML = `
+                    ⚠️ Post-processing toggle requires page refresh<br>
+                    Current: ${postProcessingEnabled ? 'ON' : 'OFF'}<br>
+                    <small>This is a limitation of the current implementation</small>
+                `;
+            });
+
+            // Enable blur button
+            document.getElementById('enableBlur').addEventListener('click', () => {
+                if (podium.postProcessor) {
+                    console.log('🌀 Enabling blur...');
+                    podium.setEffectEnabled('blur', true);
+                    podium.updateEffect('blur', { intensity: 2.0, radius: 3.0 });
+                } else {
+                    console.log('⚠️ Post-processing not enabled');
+                    document.getElementById('stats').innerHTML = `
+                        ⚠️ Post-processing is OFF<br>
+                        Cannot apply effects<br>
+                        <small>Refresh with PP enabled to test effects</small>
+                    `;
+                }
+            });
+
+            // Blur intensity slider
+            const blurSlider = document.getElementById('blurIntensity');
+            const blurVal = document.getElementById('blurVal');
+            
+            blurSlider.addEventListener('input', () => {
+                const value = parseFloat(blurSlider.value);
+                blurVal.textContent = value.toFixed(1);
+                
+                if (podium.postProcessor) {
+                    podium.setEffectEnabled('blur', true);
+                    podium.updateEffect('blur', { intensity: value, radius: 2.0 });
+                }
+            });
+        }
+
+        init();
+    </script>
+</body>
+</html>
